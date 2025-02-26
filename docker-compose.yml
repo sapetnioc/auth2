@@ -1,0 +1,138 @@
+secrets:
+  postgres-password:
+    environment: POSTGRES_PASSWORD
+  keycloak-db-password:
+    environment: KEYCLOAK_DB_PASSWORD
+
+configs:
+  pgadmin4-secret:
+    content: postgres:5432:*:postgres:${POSTGRES_PASSWORD}
+  servers.json:
+    content: |
+      {"Servers": {"1": {
+        "Group": "Servers",
+        "Name": "Auth2 postgres",
+        "Host": "postgres",
+        "Port": 5432,
+        "MaintenanceDB": "postgres",
+        "Username": "postgres",
+        "PassFile": "/pgadmin4-secret",
+        "SSLMode": "prefer"
+      }}}
+
+services:
+  postgres:
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM postgres:17.4
+        RUN apt update && apt install python3 python3-pip postgresql-plpython3-17 python3-requests -y
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init_postgres.sh:/docker-entrypoint-initdb.d/init_postgres.sh
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres-password
+      KEYCLOAK_DB: ${KEYCLOAK_DB}
+      KEYCLOAK_DB_USER: ${KEYCLOAK_DB_USER}
+    secrets:
+      - source: postgres-password
+        mode: 0600
+      - source: keycloak-db-password
+        uid: "999"
+        mode: 0600
+      
+    networks:
+      - auth2_network
+
+  pgadmin4:
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    entrypoint: /bin/sh -c "chmod 600 /pgadmin4-secret  ; /entrypoint.sh;"
+    user: root
+    configs:
+      - source: servers.json
+        target: /pgadmin4/servers.json
+      - source: pgadmin4-secret
+        target: /pgadmin4-secret
+    ports:
+      - 8081:80
+    depends_on:
+      - postgres
+    links:
+      - postgres:postgres
+    networks:
+      - auth2_network
+
+#   swagger:
+#     image: swaggerapi/swagger-ui
+#     ports:
+#       - "8080:8080"
+#     expose:
+#       - "8080"
+#     environment:
+#       API_URL: http://127.0.0.1:3000/
+#     networks:
+#       - auth2_network
+
+#   postgrest:
+#     image: postgrest/postgrest
+#     env_file:
+#       - .env
+#     ports:
+#       - 8082:8082
+#     environment:
+#       # The standard connection URI format, documented at
+#       # https://www.postgresql.org/docs/current/static/libpq-connect.html#LIBPQ-CONNSTRING
+#       PGRST_DB_URI: postgres://${POSTGRES_DB_USER}:${POSTGRES_DB_PASSWORD}@postgres:5432/postgrest
+#       # Overrides the base URL used within the OpenAPI self-documentation hosted at the API root path
+#       PGRST_OPENAPI_SERVER_PROXY_URI: http://127.0.0.1:8082
+#       # The name of which database schema to expose to REST clients
+#       PGRST_DB_SCHEMA: api
+#       # The database role to use when no client authentication is provided
+#       PGRST_DB_ANON_ROLE: web_anon
+#       PGRST_JWT_SECRET: ${POSTGREST_JWT_SECRET}
+#       PGRST_JWT_ROLE_CLAIM_KEY: ".resource_access.postgrest_api.roles[0]"
+#     depends_on:
+#       - postgres
+#     links:
+#       - postgres:postgres
+#     networks:
+#       - auth2_network
+
+#   keycloak:
+#     image: quay.io/keycloak/keycloak:26.1.2
+#     command: start
+#     environment:
+#       KC_HOSTNAME: localhost
+#       KC_HOSTNAME_PORT: 8083
+#       KC_HOSTNAME_STRICT_BACKCHANNEL: false
+#       KC_HTTP_ENABLED: true
+#       KC_HOSTNAME_STRICT_HTTPS: false
+#       KC_HEALTH_ENABLED: true
+#       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+#       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+#       KC_DB: postgres
+#       KC_DB_URL: jdbc:postgresql://postgres/${KEYCLOAK_DB}
+#       KC_DB_USERNAME: ${KEYCLOAK_DB_USER}
+#       KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+#     ports:
+#       - 8083:8083
+#     restart: always
+#     depends_on:
+#       - postgres
+#     networks:
+#       - auth2_network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  auth2_network:
+    driver: bridge
+
+

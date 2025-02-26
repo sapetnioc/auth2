@@ -3,10 +3,15 @@ secrets:
     environment: POSTGRES_PASSWORD
   keycloak-db-password:
     environment: KEYCLOAK_DB_PASSWORD
-
+  auth2-db-password:
+    environment: AUTH2_DB_PASSWORD
+  auth2-jwt-secret:
+    environment: AUTH2_JWT_SECRET
 configs:
   pgadmin4-secret:
     content: postgres:5432:*:postgres:${POSTGRES_PASSWORD}
+  auth2-db-passfile:
+    content: postgres:5432:${AUTH2_DB}:${AUTH2_DB_USER}:${AUTH2_DB_PASSWORD}
   servers.json:
     content: |
       {"Servers": {"1": {
@@ -34,10 +39,15 @@ services:
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres-password
       KEYCLOAK_DB: ${KEYCLOAK_DB}
       KEYCLOAK_DB_USER: ${KEYCLOAK_DB_USER}
+      AUTH2_DB: ${AUTH2_DB}
+      AUTH2_DB_USER: ${AUTH2_DB_USER}
     secrets:
       - source: postgres-password
         mode: 0600
       - source: keycloak-db-password
+        uid: "999"
+        mode: 0600
+      - source: auth2-db-password
         uid: "999"
         mode: 0600
       
@@ -67,65 +77,75 @@ services:
     networks:
       - auth2_network
 
-#   swagger:
-#     image: swaggerapi/swagger-ui
-#     ports:
-#       - "8080:8080"
-#     expose:
-#       - "8080"
-#     environment:
-#       API_URL: http://127.0.0.1:3000/
-#     networks:
-#       - auth2_network
+  swagger:
+    image: swaggerapi/swagger-ui
+    ports:
+      - "8080:8080"
+    expose:
+      - "8080"
+    environment:
+      API_URL: http://127.0.0.1:8082/
+    networks:
+      - auth2_network
 
-#   postgrest:
-#     image: postgrest/postgrest
-#     env_file:
-#       - .env
-#     ports:
-#       - 8082:8082
-#     environment:
-#       # The standard connection URI format, documented at
-#       # https://www.postgresql.org/docs/current/static/libpq-connect.html#LIBPQ-CONNSTRING
-#       PGRST_DB_URI: postgres://${POSTGRES_DB_USER}:${POSTGRES_DB_PASSWORD}@postgres:5432/postgrest
-#       # Overrides the base URL used within the OpenAPI self-documentation hosted at the API root path
-#       PGRST_OPENAPI_SERVER_PROXY_URI: http://127.0.0.1:8082
-#       # The name of which database schema to expose to REST clients
-#       PGRST_DB_SCHEMA: api
-#       # The database role to use when no client authentication is provided
-#       PGRST_DB_ANON_ROLE: web_anon
-#       PGRST_JWT_SECRET: ${POSTGREST_JWT_SECRET}
-#       PGRST_JWT_ROLE_CLAIM_KEY: ".resource_access.postgrest_api.roles[0]"
-#     depends_on:
-#       - postgres
-#     links:
-#       - postgres:postgres
-#     networks:
-#       - auth2_network
+  postgrest:
+    image: postgrest/postgrest
+    env_file:
+      - .env
+    ports:
+      - 8082:8082
+    secrets:
+      - auth2-jwt-secret
+    configs:
+      - source: auth2-db-passfile
+        target: /run/secrets/auth2-db-passfile
+        mode: 0600
+    environment:
+      # The standard connection URI format, documented at
+      # https://www.postgresql.org/docs/current/static/libpq-connect.html#LIBPQ-CONNSTRING
+      # PGRST_DB_URI: postgres://${AUTH2_DB_USER}@postgres:5432/${AUTH2_DB}?passfile=/run/secrets/auth2-db-passfile
+      PGRST_DB_URI: postgres://${AUTH2_DB_USER}:${AUTH2_DB_PASSWORD}@postgres:5432/${AUTH2_DB}
+      PGRST_SERVER_PORT: 8082
+      # Overrides the base URL used within the OpenAPI self-documentation hosted at the API root path
+      PGRST_OPENAPI_SERVER_PROXY_URI: http://127.0.0.1:8082
+      # The name of which database schema to expose to REST clients
+      PGRST_DB_SCHEMA: api
+      # The database role to use when no client authentication is provided
+      PGRST_DB_ANON_ROLE: web_anon
+      PGRST_JWT_SECRET: "@/run/secrets/auth2-jwt-secret"
+      PGRST_JWT_ROLE_CLAIM_KEY: ".resource_access.postgrest_api.roles[0]"
+    depends_on:
+      - postgres
+    links:
+      - postgres:postgres
+    networks:
+      - auth2_network
 
-#   keycloak:
-#     image: quay.io/keycloak/keycloak:26.1.2
-#     command: start
-#     environment:
-#       KC_HOSTNAME: localhost
-#       KC_HOSTNAME_PORT: 8083
-#       KC_HOSTNAME_STRICT_BACKCHANNEL: false
-#       KC_HTTP_ENABLED: true
-#       KC_HOSTNAME_STRICT_HTTPS: false
-#       KC_HEALTH_ENABLED: true
-#       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
-#       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
-#       KC_DB: postgres
-#       KC_DB_URL: jdbc:postgresql://postgres/${KEYCLOAK_DB}
-#       KC_DB_USERNAME: ${KEYCLOAK_DB_USER}
-#       KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
-#     ports:
-#       - 8083:8083
-#     restart: always
-#     depends_on:
-#       - postgres
-#     networks:
-#       - auth2_network
+  # keycloak:
+  #   image: quay.io/keycloak/keycloak:26.1.2
+  #   command: start
+  #   environment:
+  #     KC_HOSTNAME: localhost
+  #     KC_HOSTNAME_PORT: 8083
+  #     KC_HOSTNAME_STRICT_BACKCHANNEL: false
+  #     KC_HTTP_ENABLED: true
+  #     KC_HOSTNAME_STRICT_HTTPS: false
+  #     KC_HEALTH_ENABLED: true
+  #     KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+  #     KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+  #     KC_DB: postgres
+  #     KC_DB_URL: jdbc:postgresql://postgres/${KEYCLOAK_DB}
+  #     KC_DB_USERNAME: ${KEYCLOAK_DB_USER}
+  #     KC_DB_PASSWORD_FILE: /run/secrets/keycloak-db-password
+  #   secrets:
+  #     - keycloak-db-password
+  #   ports:
+  #     - 8083:8083
+  #   restart: always
+  #   depends_on:
+  #     - postgres
+  #   networks:
+  #     - auth2_network
 
 volumes:
   postgres_data:

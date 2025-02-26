@@ -7,14 +7,16 @@ DO \$\$
   DECLARE q TEXT;
 BEGIN
   q := 'CREATE USER ${KEYCLOAK_DB_USER} WITH PASSWORD ''' || pg_read_file('/run/secrets/keycloak-db-password') || '''';
-EXECUTE q;
+  EXECUTE q;
+  q := 'CREATE USER ${AUTH2_DB_USER} WITH PASSWORD ''' || pg_read_file('/run/secrets/auth2-db-password') || '''';
+  EXECUTE q;
 END \$\$;
 GRANT ALL ON DATABASE ${KEYCLOAK_DB} TO ${KEYCLOAK_DB_USER};
 
-CREATE DATABASE postgrest;
+CREATE DATABASE ${AUTH2_DB};
 EOSQL
 
-psql -v ON_ERROR_STOP=1 --dbname postgrest <<-EOSQL
+psql -v ON_ERROR_STOP=1 --dbname ${AUTH2_DB} <<-EOSQL
 CREATE EXTENSION plpython3u;
 CREATE SCHEMA api;
 
@@ -43,5 +45,6 @@ insert into api.todos (task) values
 create role web_anon nologin;
 grant usage on schema api to web_anon;
 grant select on api.todos to web_anon;
+grant web_anon to ${AUTH2_DB_USER}
 
 EOSQL

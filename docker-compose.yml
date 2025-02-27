@@ -113,7 +113,7 @@ services:
       # The database role to use when no client authentication is provided
       PGRST_DB_ANON_ROLE: web_anon
       PGRST_JWT_SECRET: "@/run/secrets/auth2-jwt-secret"
-      PGRST_JWT_ROLE_CLAIM_KEY: ".resource_access.postgrest_api.roles[0]"
+      PGRST_JWT_ROLE_CLAIM_KEY: ".resource_access.n4brain.roles[0]"
     depends_on:
       - postgres
     links:
@@ -121,31 +121,34 @@ services:
     networks:
       - auth2_network
 
-  # keycloak:
-  #   image: quay.io/keycloak/keycloak:26.1.2
-  #   command: start
-  #   environment:
-  #     KC_HOSTNAME: localhost
-  #     KC_HOSTNAME_PORT: 8083
-  #     KC_HOSTNAME_STRICT_BACKCHANNEL: false
-  #     KC_HTTP_ENABLED: true
-  #     KC_HOSTNAME_STRICT_HTTPS: false
-  #     KC_HEALTH_ENABLED: true
-  #     KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
-  #     KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
-  #     KC_DB: postgres
-  #     KC_DB_URL: jdbc:postgresql://postgres/${KEYCLOAK_DB}
-  #     KC_DB_USERNAME: ${KEYCLOAK_DB_USER}
-  #     KC_DB_PASSWORD_FILE: /run/secrets/keycloak-db-password
-  #   secrets:
-  #     - keycloak-db-password
-  #   ports:
-  #     - 8083:8083
-  #   restart: always
-  #   depends_on:
-  #     - postgres
-  #   networks:
-  #     - auth2_network
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1.2
+    command: start --import-realm
+    environment:
+      KC_HOSTNAME: localhost
+      KC_HOSTNAME_PORT: 8083
+      KC_HOSTNAME_STRICT_BACKCHANNEL: false
+      KC_HTTP_ENABLED: true
+      KC_HOSTNAME_STRICT_HTTPS: false
+      KC_HEALTH_ENABLED: true
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres/${KEYCLOAK_DB}
+      # KC_DB_USERNAME: ${KEYCLOAK_DB_USER}
+      KC_DB_PASSWORD_FILE: /run/secrets/keycloak-db-password
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+    volumes:
+      - ./keycloak-import:/opt/keycloak/data/import:rw
+    secrets:
+      - keycloak-db-password
+    ports:
+      - 8083:8080
+    restart: always
+    depends_on:
+      - postgres
+    networks:
+      - auth2_network
 
 volumes:
   postgres_data:

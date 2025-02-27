@@ -49,14 +49,18 @@ INSERT INTO api.dataset (name, description) VALUES
 CREATE ROLE web_anon NOLOGIN;
 GRANT web_anon TO ${AUTH2_DB_USER};
 GRANT USAGE ON SCHEMA api TO web_anon;
+-- GRANT SELECT ON api.dataset TO web_anon;
 
 CREATE ROLE standard NOLOGIN;
 GRANT standard TO ${AUTH2_DB_USER};
+GRANT web_anon TO standard;
 GRANT USAGE ON SCHEMA api TO standard;
 GRANT SELECT ON api.dataset TO standard;
 
 CREATE ROLE admin NOLOGIN;
 GRANT admin TO ${AUTH2_DB_USER};
+GRANT web_anon TO admin;
+GRANT ALL ON SCHEMA api TO admin;
 GRANT ALL ON api.dataset TO admin;
 
 EOSQL

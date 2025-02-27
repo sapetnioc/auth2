@@ -108,12 +108,14 @@ services:
       PGRST_SERVER_PORT: 8082
       # Overrides the base URL used within the OpenAPI self-documentation hosted at the API root path
       PGRST_OPENAPI_SERVER_PROXY_URI: http://127.0.0.1:8082
+      PGRST_OPENAPI_SECURITY_ACTIVE: "true"
       # The name of which database schema to expose to REST clients
       PGRST_DB_SCHEMA: api
       # The database role to use when no client authentication is provided
       PGRST_DB_ANON_ROLE: web_anon
-      PGRST_JWT_SECRET: "@/run/secrets/auth2-jwt-secret"
-      PGRST_JWT_ROLE_CLAIM_KEY: ".resource_access.n4brain.roles[0]"
+      # PGRST_JWT_SECRET: "@/run/secrets/auth2-jwt-secret"
+      PGRST_JWT_SECRET: '{"kid":"mLcHiaSE4mCA3MIUauQAARM8Qv0W1aPSuPQWlMuUwT0","kty":"RSA","alg":"RS256","n":"u9ghcE6Yxw-6okLcbGN-A2DNdTCepKCe0Qihy-NR0j629fhV9GHpFOtFSfNL5MpLlpg3YUMK0EVjxWc8-BfHKWr5_cH8l9tvGYTx3ZCkTnBH_WJ_AaaG7b9hdcd2lNKNO-7GJRJpy5L9wgkjk1a-x3hi7aaePmNquy5DdbOuOxNRvTZ9IDrUVQwQ1huiFvudeVPSuf52fEkEWAh-z7suY1_9uEXn_XQfuwBXkbMg9A5LrrykWitepEcmnDr_yrzN_b6Zmn_J-kr9-JPP3sGnian0Db8o80S_tVoGZQIhxmzUGicN1s-UjhRTZ8WZ7hxM-4GqrGpMdprGuSCbMMsGdQ","e":"AQAB"}'
+      PGRST_JWT_ROLE_CLAIM_KEY: ".resource_access.auth2.roles[0]"
     depends_on:
       - postgres
     links:

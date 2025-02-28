@@ -1,0 +1,2 @@
+#!/bin/sh
+docker exec auth2-keycloak-1 /opt/keycloak/bin/kc.sh export --realm n4brain --users realm_file --dir /opt/keycloak/data/import

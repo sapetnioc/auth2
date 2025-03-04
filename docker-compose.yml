@@ -8,11 +8,13 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init_postgres.sh:/docker-entrypoint-initdb.d/init_postgres.sh
+      - ./python:/usr/lib/n4b_auth/python
     environment:
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres-password
       KEYCLOAK_DB: ${KEYCLOAK_DB}
       KEYCLOAK_DB_USER: ${KEYCLOAK_DB_USER}
       N4B_AUTH_DB: ${N4B_AUTH_DB}
+      PYTHONPATH: /usr/lib/n4b_auth/python
     secrets:
       - source: postgres-password
         mode: 0600
@@ -80,7 +82,7 @@ services:
       PGRST_DB_ANON_ROLE: n4b_auth_anonymous
       # PGRST_JWT_SECRET: "@/run/secrets/n4b_auth-jwt-secret"
       PGRST_JWT_SECRET: '{"kid":"BJledsHD8gTXv2nlYMdppyT4nYPS47UhkHbp2RRBOJM","kty":"RSA","alg":"RS256","n":"okuvx-UF8qXHnpcJRkz707t1S2NmnsLStqtB1_MIdwz6Sv33-9CjgNcTnZEk1ZHglKchyDLc0GbZG3UR9YPXdTK5845kg-EEA_JQS6MlSpDhQznQemW-IlJdxuZWfwc4QKaMdHtPGoLdzUiDEESYfQ3apFqNosodSe-K-g0HjP1322bshs222Ur6u6tDk_n-EceHYqMBlRpDg0xQYTEcrx4HN_wTSe_uxCjrwA23LdV5Tn9qSTa9Ci1-1d8yFSiWWkN19av9qKHBepNrT_nvvkCmVwVXe_KmC4flWxZbteKuwp9yhkEaHgt2evCvvp28y0VQl2Y1qsHbOfATSv-fUw","e":"AQAB"}'
-      PGRST_JWT_ROLE_CLAIM_KEY: ".resource_access.n4b_auth.roles[0]"
+      PGRST_JWT_ROLE_CLAIM_KEY: ".preferred_username"
     depends_on:
       - postgres
     links:

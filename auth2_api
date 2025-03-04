@@ -5,47 +5,20 @@ import requests
 from pprint import pprint
 
 
-def get_access_token(user, password):
+def login(username, password):
     r = requests.post(
-        "http://localhost:8083/realms/n4brain/protocol/openid-connect/token",
+        "http://localhost:8082/rpc/login",
         data={
-            "client_id": "auth2",
-            "grant_type": "password",
-            "username": user,
+            "username": username,
             "password": password,
         },
     )
-    r.raise_for_status()
-    return r.json()["access_token"]
-
-def get_access_token(user, password):
-    r = requests.post(
-        "http://localhost:8083/realms/n4brain/protocol/openid-connect/token",
-        data={
-            "client_id": "auth2",
-            "grant_type": "password",
-            "username": user,
-            "password": password,
-        },
-    )
-    r.raise_for_status()
-    from pprint import pprint
-    pprint(r.json())    
-    refresh_token = r.json()["refresh_token"]
-    import time
-    time.sleep(8)
-    r = requests.post(
-        "http://localhost:8083/realms/n4brain/protocol/openid-connect/token",
-        data={
-            "client_id": "auth2",
-            "grant_type": "refresh_token",
-            "refresh_token": refresh_token,
-        },
-    )
-    r.raise_for_status()
-    from pprint import pprint
-    pprint(r.json())    
-    return r.json()["access_token"]
+    try:
+        r.raise_for_status()
+    except Exception:
+        pprint(r.json())
+        raise
+    return r.json()
 
 
 def call_api(method, route, data=None, access_token=None):
@@ -55,7 +28,11 @@ def call_api(method, route, data=None, access_token=None):
     r = requests.request(
         method, f"http://localhost:8082/{route}", data=data, headers=headers
     )
-    r.raise_for_status()
+    try:
+        r.raise_for_status()
+    except Exception:
+        pprint(r.json())
+        raise
     return r.json()
 
 
@@ -71,11 +48,17 @@ if __name__ == "__main__":
 
     access_token = None
     if args.user:
-        access_token = get_access_token(args.user, args.password or args.user)
+        login_info = login(args.user, args.password or args.user)
+        access_token = login_info["access_token"]
         if args.token:
             print(f"Authorization: Bearer {access_token}")
     data = None
     if args.data:
         data = json.loads(args.data)
-    result = call_api(args.method, args.route, data=data, access_token=access_token)
+    result = call_api(
+        args.method,
+        args.route,
+        data=data,
+        access_token=access_token,
+    )
     pprint(result)
